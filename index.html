@@ -1,0 +1,1212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BT</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 2rem;
+            background-color: #f5f5f5;
+        }
+        .pyramid {
+            margin: 3rem auto;
+            border-radius: 5px;
+            max-width: 800px;
+            position: relative;
+        }
+        .pyramid-container {
+            perspective: 1000px;
+            margin-bottom: 3rem;
+        }
+        .pyramid-visual {
+            position: relative;
+            height: 400px;
+            display: flex;
+            flex-direction: column;
+            transform-style: preserve-3d;
+            transition: transform 0.6s ease-in-out;
+        }
+        .level {
+            display: flex;
+            justify-content: center;
+            flex-grow: 1;
+            z-index: 10;
+        }
+        .level-block {
+            background-color: #fff;
+            border-left: 5px solid #007bff;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            padding: 15px;
+            margin: 5px 0;
+            border-radius: 5px;
+            width: 100%;
+            transition: all 0.3s ease;
+            overflow: auto;
+            max-height: 100%;
+            cursor: pointer;
+        }
+        .level-block:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 12px rgba(0,0,0,0.15);
+            border-left-color: #0056b3;
+        }
+        /* Create the pyramid visual effect */
+        .level:nth-child(1) .level-block { width: 90%; }
+        .level:nth-child(2) .level-block { width: 75%; }
+        .level:nth-child(3) .level-block { width: 60%; }
+        .level:nth-child(4) .level-block { width: 45%; }
+        .level:nth-child(5) .level-block { width: 30%; }
+        
+        .actions {
+            margin: 2rem 0;
+            text-align: center;
+        }
+        .actions button {
+            display: inline-block;
+            margin-right: 1rem;
+            padding: 0.5rem 1rem;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            text-decoration: none;
+            border-radius: 3px;
+            transition: background-color 0.3s;
+            cursor: pointer;
+        }
+        .actions button:hover {
+            background-color: #0056b3;
+        }
+        .flash-messages {
+            padding: 1rem;
+            background-color: #d4edda;
+            border: 1px solid #c3e6cb;
+            border-radius: 5px;
+            margin-bottom: 1rem;
+            display: none;
+        }
+        .status {
+            margin-bottom: 1rem;
+            font-weight: bold;
+            text-align: center;
+        }
+        .navigation {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin: 20px 0;
+        }
+        .navigation button {
+            padding: 10px 15px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        .navigation button:hover {
+            background-color: #0056b3;
+        }
+        .navigation button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+        
+        /* Modal styles */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 100;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+        }
+        .modal-content {
+            background-color: #fefefe;
+            margin: 10% auto;
+            padding: 20px;
+            border-radius: 8px;
+            width: 80%;
+            max-width: 600px;
+        }
+        .close {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        .close:hover {
+            color: #333;
+        }
+        .file-section {
+            border: 2px dashed #ccc;
+            padding: 20px;
+            margin: 20px 0;
+            text-align: center;
+            border-radius: 5px;
+        }
+        .file-input {
+            display: none;
+        }
+        .file-label {
+            display: inline-block;
+            padding: 8px 16px;
+            background-color: #007bff;
+            color: white;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 10px;
+        }
+        .entry-detail {
+            background-color: white;
+            padding: 2rem;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            max-width: 800px;
+            margin: 0 auto;
+            position: relative;
+        }
+        .entry-header {
+            border-bottom: 2px solid #007bff;
+            padding-bottom: 1rem;
+            margin-bottom: 2rem;
+        }
+        .entry-content {
+            margin-bottom: 2rem;
+        }
+        .entry-note {
+            background-color: #f9f9f9;
+            padding: 1.5rem;
+            border-radius: 5px;
+            border-left: 5px solid #007bff;
+            margin-bottom: 2rem;
+            white-space: pre-wrap;
+        }
+        .form-group {
+            margin-bottom: 1rem;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: bold;
+        }
+        .form-group input, .form-group textarea {
+            width: 100%;
+            padding: 0.5rem;
+            border: 1px solid #ccc;
+            border-radius: 3px;
+        }
+        .form-group textarea {
+            height: 150px;
+        }
+        
+        /* Additional styles for login and edit functionality */
+        .overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.8);
+            z-index: 1000;
+            display: none;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .login-container {
+            background-color: white;
+            padding: 2rem;
+            border-radius: 8px;
+            width: 90%;
+            max-width: 500px;
+            box-shadow: 0 0 20px rgba(0,0,0,0.3);
+        }
+        
+        .login-section {
+            margin: 1.5rem 0;
+        }
+        
+        .login-button {
+            display: inline-block;
+            margin: 1rem 0.5rem 0 0;
+            padding: 0.75rem 1.5rem;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: background-color 0.3s;
+        }
+        
+        .login-button.secondary {
+            background-color: #6c757d;
+        }
+        
+        .login-button:hover {
+            background-color: #0056b3;
+        }
+        
+        .login-button.secondary:hover {
+            background-color: #5a6268;
+        }
+        
+        /* Logout button styling */
+        .logout-btn {
+            background-color: #dc3545;
+        }
+        .logout-btn:hover {
+            background-color: #c82333;
+        }
+    </style>
+</head>
+<body>
+    <!-- Login overlay -->
+    <div id="login-overlay" class="overlay">
+        <div class="login-container">
+            <h2>BT Login</h2>
+            <p>Please upload your encryption key and data file to continue.</p>
+            
+            <div class="login-section">
+                <h3>Encryption Key</h3>
+                <input type="file" id="login-key-file" class="file-input">
+                <label for="login-key-file" class="file-label">Choose Key File</label>
+                <p id="login-key-status"></p>
+                
+                <h3>Data File (Optional)</h3>
+                <input type="file" id="login-data-file" class="file-input">
+                <label for="login-data-file" class="file-label">Choose Data File</label>
+                <p id="login-data-status"></p>
+                
+                <button id="login-submit" class="login-button">Login</button>
+                <button id="login-new" class="login-button secondary">Start New</button>
+            </div>
+        </div>
+    </div>
+    
+    <h1 style="text-align: center;">BT J&M</h1>
+    
+    <div class="flash-messages" id="flash-message">
+        <p id="flash-text"></p>
+    </div>
+    
+    <div class="status">
+        <p>Current Pyramid: <span id="current-pyramid">1</span></p>
+        <p>Current Level: <span id="current-level">1</span></p>
+    </div>
+    
+    <div class="actions">
+        <button id="add-entry-btn">Add New Entry</button>
+        <button id="save-key-btn">Download Key</button>
+        <button id="load-key-btn">Upload Key</button>
+        <button id="save-data-btn">Download Data</button>
+        <button id="load-data-btn">Upload Data</button>
+        <button id="generate-key-btn">Generate New Key</button>
+        <button id="logout-btn" class="logout-btn">Logout</button>
+    </div>
+    
+    <h2 style="text-align: center;">Pyramids</h2>
+    
+    <div class="navigation">
+        <button id="prev-pyramid" disabled>Previous Pyramid</button>
+        <button id="next-pyramid" disabled>Next Pyramid</button>
+    </div>
+    
+    <div class="pyramid-container" id="pyramid-view">
+        <div class="pyramid-visual" id="pyramid-visual">
+            <!-- Pyramid levels will be inserted here -->
+        </div>
+    </div>
+    
+    <!-- Key Upload Modal -->
+    <div id="key-modal" class="modal">
+        <div class="modal-content">
+            <span class="close" id="key-close">&times;</span>
+            <h2>Upload Encryption Key</h2>
+            <div class="file-section">
+                <p>Select your encryption key file</p>
+                <input type="file" id="key-file" class="file-input">
+                <label for="key-file" class="file-label">Choose Key File</label>
+                <p id="key-status"></p>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Data Upload Modal -->
+    <div id="data-modal" class="modal">
+        <div class="modal-content">
+            <span class="close" id="data-close">&times;</span>
+            <h2>Upload Encrypted Data</h2>
+            <div class="file-section">
+                <p>Select your encrypted CSV data file</p>
+                <input type="file" id="data-file" class="file-input">
+                <label for="data-file" class="file-label">Choose Data File</label>
+                <p id="data-status"></p>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Add Entry Modal -->
+    <div id="add-entry-modal" class="modal">
+        <div class="modal-content">
+            <span class="close" id="entry-close">&times;</span>
+            <h2>Add New Entry</h2>
+            <form id="entry-form">
+                <div class="form-group">
+                    <label for="date">Date:</label>
+                    <input type="date" id="date" name="date" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="title">Title:</label>
+                    <input type="text" id="title" name="title" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="note">Note:</label>
+                    <textarea id="note" name="note" required></textarea>
+                </div>
+                
+                <button type="submit" class="actions button">Add Entry</button>
+            </form>
+        </div>
+    </div>
+    
+    <!-- Edit Entry Modal -->
+    <div id="edit-entry-modal" class="modal">
+        <div class="modal-content">
+            <span class="close" id="edit-close">&times;</span>
+            <h2>Edit Entry</h2>
+            <form id="edit-form">
+                <input type="hidden" id="edit-pyramid-id">
+                <input type="hidden" id="edit-level-id">
+                
+                <div class="form-group">
+                    <label for="edit-date">Date:</label>
+                    <input type="date" id="edit-date" name="edit-date" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="edit-title">Title:</label>
+                    <input type="text" id="edit-title" name="edit-title" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="edit-note">Note:</label>
+                    <textarea id="edit-note" name="edit-note" required></textarea>
+                </div>
+                
+                <button type="submit" class="actions button">Save Changes</button>
+            </form>
+        </div>
+    </div>
+    
+    <!-- Entry Detail Modal -->
+    <div id="detail-modal" class="modal">
+        <div class="modal-content entry-detail">
+            <span class="close" id="detail-close">&times;</span>
+            <div class="entry-header">
+                <h1 id="detail-title"></h1>
+                <div class="metadata" id="detail-date"></div>
+                <div class="entry-position" id="detail-position"></div>
+            </div>
+            
+            <div class="entry-content">
+                <h2>Notes</h2>
+                <div class="entry-note" id="detail-note"></div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // Main application state
+        const app = {
+            pyramids: [],
+            currentPyramid: 0,
+            currentLevel: 0,
+            encryptionKey: null,
+            
+            // Initialize the application
+            init() {
+                this.setupEventListeners();
+                this.loadFromLocalStorage();
+                
+                // Show login overlay if no key is stored
+                if (!this.encryptionKey) {
+                    document.getElementById('login-overlay').style.display = 'flex';
+                } else {
+                    this.updateUI();
+                }
+            },
+            
+            // Setup UI event listeners
+            setupEventListeners() {
+                // Navigation buttons
+                document.getElementById('prev-pyramid').addEventListener('click', () => {
+                    if (this.currentPyramid > 0) {
+                        this.animatePyramid('right');
+                        setTimeout(() => {
+                            this.currentPyramid--;
+                            this.updateUI();
+                            this.animatePyramid('reset');
+                        }, 300);
+                    }
+                });
+                
+                document.getElementById('next-pyramid').addEventListener('click', () => {
+                    if (this.currentPyramid < this.pyramids.length - 1) {
+                        this.animatePyramid('left');
+                        setTimeout(() => {
+                            this.currentPyramid++;
+                            this.updateUI();
+                            this.animatePyramid('reset');
+                        }, 300);
+                    }
+                });
+                
+                // File handling buttons
+                document.getElementById('save-key-btn').addEventListener('click', () => this.downloadKey());
+                document.getElementById('load-key-btn').addEventListener('click', () => this.showModal('key-modal'));
+                document.getElementById('save-data-btn').addEventListener('click', () => this.downloadData());
+                document.getElementById('load-data-btn').addEventListener('click', () => this.showModal('data-modal'));
+                document.getElementById('generate-key-btn').addEventListener('click', () => this.generateNewKey());
+                
+                // Add entry button
+                document.getElementById('add-entry-btn').addEventListener('click', () => this.showModal('add-entry-modal'));
+                
+                // Logout button
+                document.getElementById('logout-btn').addEventListener('click', () => this.logout());
+                
+                // Modal close buttons
+                document.querySelectorAll('.close').forEach(closeBtn => {
+                    closeBtn.addEventListener('click', (e) => {
+                        this.hideModal(e.target.parentElement.parentElement.id);
+                    });
+                });
+                
+                // File upload handlers
+                document.getElementById('key-file').addEventListener('change', (e) => this.handleKeyUpload(e));
+                document.getElementById('data-file').addEventListener('change', (e) => this.handleDataUpload(e));
+                
+                // Entry form submission
+                document.getElementById('entry-form').addEventListener('submit', (e) => {
+                    e.preventDefault();
+                    this.addNewEntry();
+                });
+                
+                // Login event listeners
+                document.getElementById('login-submit').addEventListener('click', () => this.handleLogin());
+                document.getElementById('login-new').addEventListener('click', () => {
+                    this.generateNewKey();
+                    document.getElementById('login-overlay').style.display = 'none';
+                    this.updateUI();
+                });
+                document.getElementById('login-key-file').addEventListener('change', (e) => {
+                    const file = e.target.files[0];
+                    if (file) {
+                        document.getElementById('login-key-status').textContent = `Selected: ${file.name}`;
+                    }
+                });
+                document.getElementById('login-data-file').addEventListener('change', (e) => {
+                    const file = e.target.files[0];
+                    if (file) {
+                        document.getElementById('login-data-status').textContent = `Selected: ${file.name}`;
+                    }
+                });
+                
+                // Edit form submission
+                document.getElementById('edit-form').addEventListener('submit', (e) => {
+                    e.preventDefault();
+                    this.updateEntry();
+                });
+            },
+            
+            // Handle login attempt
+            handleLogin() {
+                const keyFile = document.getElementById('login-key-file').files[0];
+                const dataFile = document.getElementById('login-data-file').files[0];
+                
+                if (!keyFile) {
+                    document.getElementById('login-key-status').textContent = 'Please select a key file';
+                    return;
+                }
+                
+                const keyReader = new FileReader();
+                keyReader.onload = (e) => {
+                    try {
+                        this.encryptionKey = e.target.result;
+                        this.saveToLocalStorage();
+                        
+                        // If data file is selected, load it
+                        if (dataFile) {
+                            const dataReader = new FileReader();
+                            dataReader.onload = (e) => {
+                                try {
+                                    this.loadCSVData(e.target.result);
+                                    document.getElementById('login-overlay').style.display = 'none';
+                                    this.updateUI();
+                                    this.showFlashMessage('Login successful with data!');
+                                } catch (error) {
+                                    document.getElementById('login-data-status').textContent = 'Error loading data: ' + error.message;
+                                }
+                            };
+                            dataReader.readAsText(dataFile);
+                        } else {
+                            // No data file, just close login
+                            document.getElementById('login-overlay').style.display = 'none';
+                            this.updateUI();
+                            this.showFlashMessage('Login successful!');
+                        }
+                    } catch (error) {
+                        document.getElementById('login-key-status').textContent = 'Error loading key: ' + error.message;
+                    }
+                };
+                keyReader.readAsText(keyFile);
+            },
+            
+            // Update the UI based on current state
+            updateUI() {
+                document.getElementById('current-pyramid').textContent = this.pyramids.length ? this.currentPyramid + 1 : 0;
+                document.getElementById('current-level').textContent = this.currentLevel + 1;
+                
+                // Update navigation buttons
+                document.getElementById('prev-pyramid').disabled = this.currentPyramid <= 0;
+                document.getElementById('next-pyramid').disabled = this.currentPyramid >= this.pyramids.length - 1;
+                
+                this.renderCurrentPyramid();
+            },
+            
+            // Render the current pyramid
+            renderCurrentPyramid() {
+                const pyramidVisual = document.getElementById('pyramid-visual');
+                pyramidVisual.innerHTML = '';
+                
+                if (!this.pyramids.length || !this.pyramids[this.currentPyramid] || this.pyramids[this.currentPyramid].length === 0) {
+                    pyramidVisual.innerHTML = '<p style="text-align: center;">No pyramids yet. Add an entry to start!</p>';
+                    return;
+                }
+                
+                const pyramid = this.pyramids[this.currentPyramid];
+                pyramid.forEach((entry, levelIdx) => {
+                    if (!entry) return; // Skip null entries
+                    
+                    const levelDiv = document.createElement('div');
+                    levelDiv.className = 'level';
+                    
+                    const blockDiv = document.createElement('div');
+                    blockDiv.className = 'level-block';
+                    blockDiv.addEventListener('click', () => this.showEntryDetail(this.currentPyramid, levelIdx));
+                    
+                    blockDiv.innerHTML = `
+                        <h4>Level ${levelIdx + 1}</h4>
+                        <p><strong>Date:</strong> ${entry.date}</p>
+                        <p><strong>Title:</strong> ${entry.title}</p>
+                        <p><strong>Note:</strong> ${this.truncateText(entry.note, 50)}</p>
+                        <p class="view-more"><small>Click for details</small></p>
+                    `;
+                    
+                    levelDiv.appendChild(blockDiv);
+                    pyramidVisual.appendChild(levelDiv);
+                });
+            },
+            
+            // Show entry details with edit option
+            showEntryDetail(pyramidId, levelId) {
+                const entry = this.pyramids[pyramidId][levelId];
+                
+                document.getElementById('detail-title').textContent = entry.title;
+                document.getElementById('detail-date').textContent = `Date: ${entry.date}`;
+                document.getElementById('detail-position').textContent = `Pyramid ${pyramidId + 1}, Level ${levelId + 1}`;
+                document.getElementById('detail-note').textContent = entry.note;
+                
+                // Create edit button if it doesn't exist
+                let editButton = document.getElementById('edit-entry-button');
+                if (!editButton) {
+                    editButton = document.createElement('button');
+                    editButton.id = 'edit-entry-button';
+                    editButton.className = 'actions button';
+                    editButton.textContent = 'Edit Entry';
+                    document.querySelector('.entry-detail').appendChild(editButton);
+                }
+                
+                // Update the edit button's click handler
+                editButton.onclick = () => {
+                    this.openEditModal(pyramidId, levelId);
+                    this.hideModal('detail-modal');
+                };
+                
+                this.showModal('detail-modal');
+            },
+            
+            // Open the edit modal with entry data
+            openEditModal(pyramidId, levelId) {
+                const entry = this.pyramids[pyramidId][levelId];
+                
+                document.getElementById('edit-pyramid-id').value = pyramidId;
+                document.getElementById('edit-level-id').value = levelId;
+                document.getElementById('edit-date').value = entry.date;
+                document.getElementById('edit-title').value = entry.title;
+                document.getElementById('edit-note').value = entry.note;
+                
+                this.showModal('edit-entry-modal');
+            },
+            
+            // Update an existing entry
+            updateEntry() {
+                const pyramidId = parseInt(document.getElementById('edit-pyramid-id').value);
+                const levelId = parseInt(document.getElementById('edit-level-id').value);
+                const dateInput = document.getElementById('edit-date').value;
+                const titleInput = document.getElementById('edit-title').value;
+                const noteInput = document.getElementById('edit-note').value;
+                
+                // Update the entry
+                this.pyramids[pyramidId][levelId] = {
+                    date: dateInput,
+                    title: titleInput,
+                    note: noteInput
+                };
+                
+                this.saveToLocalStorage();
+                this.updateUI();
+                this.hideModal('edit-entry-modal');
+                this.showFlashMessage('Entry updated successfully!');
+            },
+            
+            // Add a new entry
+            addNewEntry() {
+                if (!this.encryptionKey) {
+                    this.showFlashMessage('Please generate or upload an encryption key first');
+                    return;
+                }
+                
+                const dateInput = document.getElementById('date').value;
+                const titleInput = document.getElementById('title').value;
+                const noteInput = document.getElementById('note').value;
+                
+                // Create a pyramid if needed
+                if (!this.pyramids[this.currentPyramid]) {
+                    this.pyramids.push([]);
+                }
+                
+                // Add the entry
+                this.pyramids[this.currentPyramid].push({
+                    date: dateInput,
+                    title: titleInput,
+                    note: noteInput
+                });
+                
+                // Move to next level
+                this.currentLevel++;
+                
+                // If pyramid is complete, start a new one
+                if (this.currentLevel >= 5) {
+                    const lastEntry = this.pyramids[this.currentPyramid][this.currentLevel - 1];
+                    this.currentPyramid++;
+                    this.currentLevel = 1;
+                    this.pyramids.push([lastEntry]);
+                }
+                
+                // Reset form
+                document.getElementById('entry-form').reset();
+                this.hideModal('add-entry-modal');
+                
+                this.saveToLocalStorage();
+                this.updateUI();
+                this.showFlashMessage('Entry added successfully!');
+            },
+            
+            // Generate a new encryption key
+            generateNewKey() {
+                // Generate a random key
+                const key = CryptoJS.lib.WordArray.random(16).toString();
+                this.encryptionKey = key;
+                this.saveToLocalStorage();
+                this.showFlashMessage('New encryption key generated! Download it to save it securely.');
+            },
+            
+            // Download the encryption key as a file
+            downloadKey() {
+                if (!this.encryptionKey) {
+                    this.showFlashMessage('No encryption key available. Generate one first.');
+                    return;
+                }
+                
+                const blob = new Blob([this.encryptionKey], {type: 'text/plain'});
+                this.downloadFile(blob, 'encryption.key');
+            },
+            
+            // Download the data as an encrypted CSV file
+            downloadData() {
+                if (!this.encryptionKey) {
+                    this.showFlashMessage('No encryption key available. Generate or upload one first.');
+                    return;
+                }
+                
+                if (!this.pyramids.length) {
+                    this.showFlashMessage('No data to save.');
+                    return;
+                }
+                
+                // Build CSV content with proper encoding
+                let csvContent = 'pyramid,level,date,title,note\n';
+                
+                this.pyramids.forEach((pyramid, pIdx) => {
+                    pyramid.forEach((entry, lIdx) => {
+                        // CSV values might contain commas, quotes, etc.
+                        // Use base64 encoding to ensure data integrity
+                        const encryptedDate = this.encrypt(entry.date);
+                        const encryptedTitle = this.encrypt(entry.title);
+                        const encryptedNote = this.encrypt(entry.note);
+                        
+                        csvContent += `${pIdx},${lIdx},"${encryptedDate}","${encryptedTitle}","${encryptedNote}"\n`;
+                    });
+                });
+                
+                const blob = new Blob([csvContent], {type: 'text/csv;charset=utf-8'});
+                this.downloadFile(blob, 'pyramids.csv');
+            },
+            
+            // Handle key file upload
+            handleKeyUpload(event) {
+                const file = event.target.files[0];
+                if (!file) return;
+                
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    try {
+                        this.encryptionKey = e.target.result;
+                        this.saveToLocalStorage();
+                        document.getElementById('key-status').textContent = 'Key loaded successfully!';
+                        setTimeout(() => {
+                            this.hideModal('key-modal');
+                            this.showFlashMessage('Encryption key loaded successfully!');
+                        }, 1000);
+                    } catch (error) {
+                        document.getElementById('key-status').textContent = 'Error loading key: ' + error.message;
+                    }
+                };
+                reader.readAsText(file);
+            },
+            
+            // Handle data file upload
+            handleDataUpload(event) {
+                const file = event.target.files[0];
+                if (!file) return;
+                
+                if (!this.encryptionKey) {
+                    document.getElementById('data-status').textContent = 'Please load an encryption key first.';
+                    return;
+                }
+                
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    try {
+                        this.loadCSVData(e.target.result);
+                        document.getElementById('data-status').textContent = 'Data loaded successfully!';
+                        setTimeout(() => {
+                            this.hideModal('data-modal');
+                            this.showFlashMessage('Data loaded successfully!');
+                        }, 1000);
+                    } catch (error) {
+                        document.getElementById('data-status').textContent = 'Error loading data: ' + error.message;
+                        console.error('Data load error:', error);
+                    }
+                };
+                reader.readAsText(file);
+            },
+            
+            // Load data from CSV text
+            loadCSVData(csvText) {
+                try {
+                    const lines = csvText.split('\n');
+                    if (lines.length < 2) throw new Error('Invalid CSV format');
+                    
+                    // Reset pyramids
+                    this.pyramids = [];
+                    
+                    // Skip header row
+                    for (let i = 1; i < lines.length; i++) {
+                        const line = lines[i].trim();
+                        if (!line) continue;
+                        
+                        const parts = this.parseCSVLine(line);
+                        if (parts.length < 5) continue;
+                        
+                        const pyramidIdx = parseInt(parts[0]);
+                        const levelIdx = parseInt(parts[1]);
+                        
+                        // Create pyramids as needed
+                        while (this.pyramids.length <= pyramidIdx) {
+                            this.pyramids.push([]);
+                        }
+                        
+                        try {
+                            // Decrypt and store data with proper error handling
+                            const entry = {
+                                date: this.decrypt(parts[2]),
+                                title: this.decrypt(parts[3]),
+                                note: this.decrypt(parts[4])
+                            };
+                            
+                            // Ensure the pyramid has enough levels
+                            while (this.pyramids[pyramidIdx].length <= levelIdx) {
+                                this.pyramids[pyramidIdx].push(null);
+                            }
+                            
+                            // Store the entry
+                            this.pyramids[pyramidIdx][levelIdx] = entry;
+                            
+                        } catch (decryptError) {
+                            console.error(`Failed to decrypt entry at pyramid ${pyramidIdx}, level ${levelIdx}:`, decryptError);
+                        }
+                    }
+                    
+                    // Filter out any null entries
+                    this.pyramids = this.pyramids.map(pyramid => 
+                        pyramid.filter(entry => entry !== null)
+                    ).filter(pyramid => pyramid.length > 0);
+                    
+                    // Set current position
+                    if (this.pyramids.length > 0) {
+                        this.currentPyramid = this.pyramids.length - 1;
+                        this.currentLevel = this.pyramids[this.currentPyramid].length;
+                    } else {
+                        this.currentPyramid = 0;
+                        this.currentLevel = 0;
+                    }
+                    
+                    this.saveToLocalStorage();
+                    this.updateUI();
+                } catch (error) {
+                    console.error("CSV load error:", error);
+                    throw error;
+                }
+            },
+            
+            // Parse a CSV line accounting for quoted fields
+            parseCSVLine(line) {
+                const result = [];
+                let inQuotes = false;
+                let currentField = '';
+                
+                for (let i = 0; i < line.length; i++) {
+                    const char = line[i];
+                    
+                    if (char === '"') {
+                        // Toggle quote mode, but only add quotes in quoted mode
+                        if (inQuotes) {
+                            // Check if this is an escaped quote (i.e., "")
+                            if (i + 1 < line.length && line[i + 1] === '"') {
+                                currentField += '"';
+                                i++; // Skip the next quote
+                            } else {
+                                inQuotes = false;
+                            }
+                        } else {
+                            inQuotes = true;
+                        }
+                    } else if (char === ',' && !inQuotes) {
+                        // End of field
+                        result.push(currentField);
+                        currentField = '';
+                    } else {
+                        // Regular character
+                        currentField += char;
+                    }
+                }
+                
+                // Add the last field
+                result.push(currentField);
+                return result;
+            },
+            
+            // Encrypt text using key with improved handling
+            encrypt(text) {
+                try {
+                    return CryptoJS.AES.encrypt(text, this.encryptionKey).toString();
+                } catch (e) {
+                    console.error("Encryption error:", e);
+                    throw new Error("Failed to encrypt data: " + e.message);
+                }
+            },
+            
+            // Decrypt text using key with improved error handling
+            decrypt(encryptedText) {
+                try {
+                    // Check if this is our special plaintext format from the converter
+                    if (encryptedText.startsWith('PLAINTEXT:')) {
+                        // Extract the base64 encoded plaintext
+                        const base64Text = encryptedText.substring(10);
+                        return atob(base64Text);
+                    }
+                    
+                    // Regular CryptoJS decryption
+                    const decrypted = CryptoJS.AES.decrypt(encryptedText, this.encryptionKey);
+                    return decrypted.toString(CryptoJS.enc.Utf8);
+                } catch (e) {
+                    console.error("Decryption error:", e, "for text:", encryptedText);
+                    throw new Error("Failed to decrypt data: " + e.message);
+                }
+            },
+            
+            // Load data from CSV text with improved error handling
+            loadCSVData(csvText) {
+                try {
+                    const lines = csvText.split('\n');
+                    if (lines.length < 2) throw new Error('Invalid CSV format');
+                    
+                    // Reset pyramids
+                    this.pyramids = [];
+                    
+                    // Skip header row
+                    for (let i = 1; i < lines.length; i++) {
+                        const line = lines[i].trim();
+                        if (!line) continue;
+                        
+                        const parts = this.parseCSVLine(line);
+                        if (parts.length < 5) continue;
+                        
+                        const pyramidIdx = parseInt(parts[0]);
+                        const levelIdx = parseInt(parts[1]);
+                        
+                        // Create pyramids as needed
+                        while (this.pyramids.length <= pyramidIdx) {
+                            this.pyramids.push([]);
+                        }
+                        
+                        try {
+                            // Decrypt and store data with proper error handling
+                            const entry = {
+                                date: this.decrypt(parts[2]),
+                                title: this.decrypt(parts[3]),
+                                note: this.decrypt(parts[4])
+                            };
+                            
+                            // Ensure the pyramid has enough levels
+                            while (this.pyramids[pyramidIdx].length <= levelIdx) {
+                                this.pyramids[pyramidIdx].push(null);
+                            }
+                            
+                            // Store the entry
+                            this.pyramids[pyramidIdx][levelIdx] = entry;
+                            
+                        } catch (decryptError) {
+                            console.error(`Failed to decrypt entry at pyramid ${pyramidIdx}, level ${levelIdx}:`, decryptError);
+                        }
+                    }
+                    
+                    // Filter out any null entries
+                    this.pyramids = this.pyramids.map(pyramid => 
+                        pyramid.filter(entry => entry !== null)
+                    ).filter(pyramid => pyramid.length > 0);
+                    
+                    // Set current position
+                    if (this.pyramids.length > 0) {
+                        this.currentPyramid = this.pyramids.length - 1;
+                        this.currentLevel = this.pyramids[this.currentPyramid].length;
+                    } else {
+                        this.currentPyramid = 0;
+                        this.currentLevel = 0;
+                    }
+                    
+                    this.saveToLocalStorage();
+                    this.updateUI();
+                } catch (error) {
+                    console.error("CSV load error:", error);
+                    throw error;
+                }
+            },
+            
+            // Render the current pyramid with null check
+            renderCurrentPyramid() {
+                const pyramidVisual = document.getElementById('pyramid-visual');
+                pyramidVisual.innerHTML = '';
+                
+                if (!this.pyramids.length || !this.pyramids[this.currentPyramid] || this.pyramids[this.currentPyramid].length === 0) {
+                    pyramidVisual.innerHTML = '<p style="text-align: center;">No pyramids yet. Add an entry to start!</p>';
+                    return;
+                }
+                
+                const pyramid = this.pyramids[this.currentPyramid];
+                pyramid.forEach((entry, levelIdx) => {
+                    if (!entry) return; // Skip null entries
+                    
+                    const levelDiv = document.createElement('div');
+                    levelDiv.className = 'level';
+                    
+                    const blockDiv = document.createElement('div');
+                    blockDiv.className = 'level-block';
+                    blockDiv.addEventListener('click', () => this.showEntryDetail(this.currentPyramid, levelIdx));
+                    
+                    blockDiv.innerHTML = `
+                        <h4>Level ${levelIdx + 1}</h4>
+                        <p><strong>Date:</strong> ${entry.date}</p>
+                        <p><strong>Title:</strong> ${entry.title}</p>
+                        <p><strong>Note:</strong> ${this.truncateText(entry.note, 50)}</p>
+                        <p class="view-more"><small>Click for details</small></p>
+                    `;
+                    
+                    levelDiv.appendChild(blockDiv);
+                    pyramidVisual.appendChild(levelDiv);
+                });
+            },
+            
+            // Truncate text to a specific length with ellipsis
+            truncateText(text, length) {
+                if (!text || text.length <= length) return text;
+                return text.substring(0, length) + '...';
+            },
+            
+            // Show a flash message to the user
+            showFlashMessage(message) {
+                const flashMessage = document.getElementById('flash-message');
+                const flashText = document.getElementById('flash-text');
+                
+                flashText.textContent = message;
+                flashMessage.style.display = 'block';
+                
+                setTimeout(() => {
+                    flashMessage.style.display = 'none';
+                }, 3000);
+            },
+            
+            // Show a modal dialog
+            showModal(modalId) {
+                const modal = document.getElementById(modalId);
+                if (modal) {
+                    modal.style.display = 'block';
+                }
+            },
+            
+            // Hide a modal dialog
+            hideModal(modalId) {
+                const modal = document.getElementById(modalId);
+                if (modal) {
+                    modal.style.display = 'none';
+                }
+            },
+            
+            // Save the current state to local storage
+            saveToLocalStorage() {
+                try {
+                    const state = {
+                        pyramids: this.pyramids,
+                        currentPyramid: this.currentPyramid,
+                        currentLevel: this.currentLevel,
+                        encryptionKey: this.encryptionKey
+                    };
+                    
+                    localStorage.setItem('BTbState', JSON.stringify(state));
+                } catch (error) {
+                    console.error("Error saving to local storage:", error);
+                }
+            },
+            
+            // Load the state from local storage
+            loadFromLocalStorage() {
+                try {
+                    const state = JSON.parse(localStorage.getItem('BTbState'));
+                    if (state) {
+                        this.pyramids = state.pyramids || [];
+                        this.currentPyramid = state.currentPyramid || 0;
+                        this.currentLevel = state.currentLevel || 0;
+                        this.encryptionKey = state.encryptionKey || null;
+                    }
+                } catch (error) {
+                    console.error("Error loading from local storage:", error);
+                }
+            },
+            
+            // Download a file with the given blob data
+            downloadFile(blob, fileName) {
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = fileName;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            },
+            
+            // Animate the pyramid transition
+            animatePyramid(direction) {
+                const pyramidVisual = document.getElementById('pyramid-visual');
+                
+                if (direction === 'left') {
+                    pyramidVisual.style.transform = 'translateX(-100%)';
+                } else if (direction === 'right') {
+                    pyramidVisual.style.transform = 'translateX(100%)';
+                } else {
+                    pyramidVisual.style.transform = 'translateX(0)';
+                }
+            },
+            
+            // Logout and automatically download data and key
+            logout() {
+                // Check if there's data and encryption key to save
+                if (this.encryptionKey) {
+                    // Create and download the key and data files automatically
+                    this.showFlashMessage('Downloading your key and data before logout...');
+                    
+                    // Download key first
+                    setTimeout(() => {
+                        this.downloadKey();
+                        
+                        // Then download data if it exists
+                        if (this.pyramids.length > 0) {
+                            setTimeout(() => {
+                                this.downloadData();
+                                
+                                // Clear application state after downloads
+                                setTimeout(() => {
+                                    this.clearApplicationState();
+                                    this.showFlashMessage('Logged out successfully!');
+                                }, 500);
+                            }, 1000);
+                        } else {
+                            // No data to save, just logout after key download
+                            setTimeout(() => {
+                                this.clearApplicationState();
+                                this.showFlashMessage('Logged out successfully!');
+                            }, 500);
+                        }
+                    }, 500);
+                } else {
+                    // No key or data to save, just logout
+                    this.clearApplicationState();
+                    this.showFlashMessage('Logged out successfully!');
+                }
+            },
+            
+            // Clear application state on logout
+            clearApplicationState() {
+                // Clear memory
+                this.pyramids = [];
+                this.currentPyramid = 0;
+                this.currentLevel = 0;
+                this.encryptionKey = null;
+                
+                // Clear localStorage except for any settings we want to keep
+                localStorage.removeItem('BTbState');
+                
+                // Show login screen
+                document.getElementById('login-overlay').style.display = 'flex';
+                
+                // Reset UI
+                this.updateUI();
+            },
+        };
+        
+        // Initialize the application
+        document.addEventListener('DOMContentLoaded', () => app.init());
+    </script>
+</body>
+</html>
